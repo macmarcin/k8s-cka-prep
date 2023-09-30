@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bee
+  labels:
+    spray: mortein
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+  tolerations:
+  - key: "spray"
+    operator: "Equal"
+    value: "mortein"
+    effect: "NoSchedule"

@@ -1,0 +1,51 @@
+apt-mark unhold kubeadm && \
+apt-get update && apt-get install -y kubeadm=1.27.0-00 && \
+apt-mark hold kubeadm
+
+apt-mark unhold kubelet kubectl && \
+apt-get update && apt-get install -y kubelet=1.27.0-00 kubectl=1.27.0-00 && \
+apt-mark hold kubelet kubectl
+
+# backing all deployments
+kubectl get all --all-namespaces -o yaml > all-deploy-services.yaml
+
+# backing up and restoring etcd
+export ETCDCTL_API=3
+etcdctl -version
+
+cert=/etc/kubernetes/pki/etcd/server.crt
+cert-ca=/etc/kubernetes/pki/etcd/ca.crt
+
+#backing up etcd db
+etcdctl --endpoints=https://[127.0.0.1]:2379 \
+--cacert=/etc/kubernetes/pki/etcd/ca.crt \
+--cert=/etc/kubernetes/pki/etcd/server.crt \
+--key=/etc/kubernetes/pki/etcd/server.key \
+snapshot save /opt/snapshot-pre-boot.db
+
+#restore etcd
+etcdctl snapshot restore --data-dir /var/lib/etcd-from-backup /opt/snapshot-pre-boot.db
+
+
+# list all etcd cluster members
+etcdctl member list --endpoints=https://127.0.0.1:2379 \
+--cacert=/etc/etcd/pki/ca.pem \
+--cert=/etc/etcd/pki/etcd.pem \
+--key=/etc/etcd/pki/etcd-key.pem
+
+#backup & restore 
+export ETCDCTL_API=3
+ps -aux |grep etcd
+
+#root        1892  0.0  0.0 11219132 60776 ?      Ssl  Sep18   0:39 etcd --advertise-client-urls=https://192.1.191.17:2379 --cert-file=/etc/kubernetes/pki/etcd/server.crt --client-cert-auth=true --data-dir=/var/lib/etcd --experimental-initial-corrupt-check=true --initial-advertise-peer-urls=https://192.1.191.17:2380 --initial-cluster=cluster1-controlplane=https://192.1.191.17:2380 --key-file=/etc/kubernetes/pki/etcd/server.key --listen-client-urls=https://127.0.0.1:2379,https://192.1.191.17:2379 --listen-metrics-urls=http://127.0.0.1:2381 --listen-peer-urls=https://192.1.191.17:2380 --name=cluster1-controlplane --peer-cert-file=/etc/kubernetes/pki/etcd/peer.crt --peer-client-cert-auth=true --peer-key-file=/etc/kubernetes/pki/etcd/peer.key --peer-trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt --snapshot-count=10000 --trusted-ca-file=/etc/kubernetes/pki/etcd/ca.crt
+
+etcdctl --endpoints=192.1.191.17:2379 \
+--cacert=/etc/kubernetes/pki/etcd/ca.crt \
+--cert= /etc/kubernetes/pki/etcd/server.crt \
+--key=/etc/kubernetes/pki/etcd/server.key \
+snapshot save /opt/cluster1.db
+
+
+#restore
+export ETCDCTL_API=3
+etcdctl snapshot restore --data-dir /var/lib/etcd-data-new /opt/cluster2.db
